@@ -127,9 +127,9 @@ export default function DiagramEditor({ mode }: DiagramEditorProps) {
 
       {/* Main Canvas */}
       <div className="flex-1 bg-background overflow-hidden">
-        {diagram ? (
+        {diagram || mode === "draw" ? (
           <EditorCanvas
-            diagram={diagram}
+            diagram={diagram || { nodes: [], edges: [] }}
             selectedNodeId={selectedNodeId}
             onSelectNode={setSelectedNodeId}
             onUpdateNode={handleUpdateNode}
@@ -139,9 +139,7 @@ export default function DiagramEditor({ mode }: DiagramEditorProps) {
           <div className="flex items-center justify-center h-full">
             <div className="text-center text-muted-foreground">
               <p className="text-lg mb-2">
-                {mode === "generate"
-                  ? "Enter text on the left to generate a diagram"
-                  : 'Click "Add Node" to start drawing'}
+                Enter text on the left to generate a diagram
               </p>
             </div>
           </div>
@@ -149,9 +147,9 @@ export default function DiagramEditor({ mode }: DiagramEditorProps) {
       </div>
 
       {/* Right Panel */}
-      {diagram && (
+      {(diagram || mode === "draw") && (
         <PropertiesPanel
-          diagram={diagram}
+          diagram={diagram || { nodes: [], edges: [] }}
           selectedNodeId={selectedNodeId}
           onUpdateNode={handleUpdateNode}
           onDeleteNode={handleDeleteNode}
