@@ -295,11 +295,6 @@ export default function LandingPage() {
           transition={{ duration: 0.6 }}
           className="space-y-6"
         >
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-white/5 bg-[#0d1018]/80 text-xs text-[#22d3ee] font-medium">
-            <Zap className="w-3.5 h-3.5" />
-            <span>Powered by Gemini 2.5 Flash</span>
-          </div>
-
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-[1.15] text-[#f7f8ff]">
             Turn complex ideas into <br className="hidden sm:inline" />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#7c5cff] via-[#22d3ee] to-[#22c55e]">
@@ -312,15 +307,26 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-4">
-            <Link href="/editor" className="w-full sm:w-auto">
+            {user ? (
+              <Link href="/editor" className="w-full sm:w-auto">
+                <Button 
+                  size="lg" 
+                  className="bg-[#7c5cff] hover:bg-[#7c5cff]/90 text-white font-semibold px-8 rounded-lg shadow-lg shadow-[#7c5cff]/20 w-full sm:w-auto"
+                >
+                  Go to Dashboard
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+            ) : (
               <Button 
+                onClick={() => { setAuthMode("register"); setAuthOpen(true); }}
                 size="lg" 
                 className="bg-[#7c5cff] hover:bg-[#7c5cff]/90 text-white font-semibold px-8 rounded-lg shadow-lg shadow-[#7c5cff]/20 w-full sm:w-auto"
               >
                 Try Diagravix Free
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-            </Link>
+            )}
             <a href="#features" className="w-full sm:w-auto">
               <Button size="lg" variant="outline" className="border-white/10 hover:bg-[#0d1018]/50 text-[#a5adc2] hover:text-[#f7f8ff] px-8 rounded-lg w-full sm:w-auto">
                 Explore Features
