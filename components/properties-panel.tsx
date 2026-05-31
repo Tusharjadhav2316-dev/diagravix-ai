@@ -5,7 +5,7 @@ import type { GeneratedDiagram } from "@/lib/diagram-generator"
 import { Trash2 } from "lucide-react"
 
 interface PropertiesPanelProps {
-  diagram: GeneratedDiagram
+  diagram: any
   selectedNodeId: string | null
   onUpdateNode: (id: string, updates: Record<string, unknown>) => void
   onDeleteNode: (id: string) => void
@@ -21,7 +21,7 @@ export default function PropertiesPanel({
   onAddNode,
   onConnect,
 }: PropertiesPanelProps) {
-  const selectedNode = selectedNodeId ? diagram.nodes.find((n) => n.id === selectedNodeId) : null
+  const selectedNode = selectedNodeId ? diagram.nodes.find((n: any) => n.id === selectedNodeId) : null
 
   return (
     <div className="w-72 border-l border-border bg-card p-4 overflow-y-auto">
@@ -78,8 +78,8 @@ export default function PropertiesPanel({
             <label className="text-xs font-medium text-muted-foreground mb-2 block">Connect to:</label>
             <div className="space-y-1 max-h-32 overflow-y-auto">
               {diagram.nodes
-                .filter((n) => n.id !== selectedNodeId)
-                .map((node) => (
+                .filter((n: any) => n.id !== selectedNodeId)
+                .map((node: any) => (
                   <button
                     key={node.id}
                     onClick={() => selectedNodeId && onConnect(selectedNodeId, node.id)}

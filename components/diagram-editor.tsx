@@ -5,14 +5,20 @@ import { useDiagramGeneration } from "@/hooks/use-diagram-generation"
 import GenerationPanel from "./generation-panel"
 import EditorCanvas from "./editor-canvas"
 import PropertiesPanel from "./properties-panel"
-import type { GeneratedDiagram } from "@/lib/diagram-generator"
+import { useEditorStore } from "@/stores/editor-store"
 
 interface DiagramEditorProps {
   mode: "draw" | "generate"
 }
 
 export default function DiagramEditor({ mode }: DiagramEditorProps) {
-  const [diagram, setDiagram] = useState<GeneratedDiagram | null>(null)
+  const diagram = useEditorStore((state) => state.diagram)
+  const setDiagram = useEditorStore((state) => state.setDiagram)
+  const updateNode = useEditorStore((state) => state.updateNode)
+  const addNode = useEditorStore((state) => state.addNode)
+  const deleteElements = useEditorStore((state) => state.deleteElements)
+  const addEdge = useEditorStore((state) => state.addEdge)
+  
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const { loading, error } = useDiagramGeneration()
 
@@ -36,7 +42,33 @@ export default function DiagramEditor({ mode }: DiagramEditorProps) {
       }
 
       const generatedDiagram = await response.json()
-      setDiagram(generatedDiagram)
+      
+      // Convert to canonical schema format before setting
+      const canonicalDiagram = {
+        id: `diagram-${Date.now()}`,
+        title: "AI Generated Diagram",
+        description: text,
+        diagramType: (generatedDiagram.diagram_type || "flowchart") as any,
+        nodes: (generatedDiagram.nodes || []).map((n: any) => ({
+          id: n.id,
+          label: n.label,
+          type: n.type || "process",
+          position: { x: n.x ?? 100, y: n.y ?? 100 },
+          width: n.width || 150,
+          height: n.height || 60
+        })),
+        edges: (generatedDiagram.edges || []).map((e: any) => ({
+          id: `edge-${e.source}-${e.target}`,
+          source: e.source,
+          target: e.target,
+          label: e.relationship || ""
+        })),
+        visibility: "private" as const,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+      
+      setDiagram(canonicalDiagram)
       setSelectedNodeId(null)
     } catch (err) {
       console.error("Generation error:", err)
@@ -44,45 +76,25 @@ export default function DiagramEditor({ mode }: DiagramEditorProps) {
   }
 
   const handleUpdateNode = (nodeId: string, updates: Record<string, unknown>) => {
-    if (!diagram) return
-
-    setDiagram({
-      ...diagram,
-      nodes: diagram.nodes.map((node) => (node.id === nodeId ? { ...node, ...updates } : node)),
-    })
+    updateNode(nodeId, updates as any)
   }
 
   const handleDeleteNode = (nodeId: string) => {
-    if (!diagram) return
-
-    const newNodes = diagram.nodes.filter((n) => n.id !== nodeId)
-    const newEdges = diagram.edges.filter((e) => e.source !== nodeId && e.target !== nodeId)
-
-    setDiagram({
-      ...diagram,
-      nodes: newNodes,
-      edges: newEdges,
-    })
+    deleteElements([nodeId], [])
     setSelectedNodeId(null)
   }
 
   const handleAddNode = () => {
-    if (!diagram) return
-
     const newNode = {
       id: `node-${Date.now()}`,
       label: "New Node",
-      type: "process" as const,
-      x: 200,
-      y: 200,
+      type: "process",
+      position: { x: 200, y: 200 },
       width: 150,
-      height: 80,
+      height: 60,
     }
 
-    setDiagram({
-      ...diagram,
-      nodes: [...diagram.nodes, newNode],
-    })
+    addNode(newNode)
   }
 
   const handleConnectNodes = (sourceId: string, targetId: string) => {
@@ -92,17 +104,12 @@ export default function DiagramEditor({ mode }: DiagramEditorProps) {
 
     if (!edgeExists) {
       const newEdge = {
-        id: `edge-${Date.now()}`,
+        id: `edge-${sourceId}-${targetId}-${Date.now()}`,
         source: sourceId,
         target: targetId,
-        label: "connects",
-        type: "connection" as const,
+        label: ""
       }
-
-      setDiagram({
-        ...diagram,
-        edges: [...diagram.edges, newEdge],
-      })
+      addEdge(newEdge)
     }
   }
 
@@ -114,7 +121,7 @@ export default function DiagramEditor({ mode }: DiagramEditorProps) {
           onGenerate={handleGenerateDiagram}
           loading={loading}
           error={error}
-          diagramInfo={diagram?.metadata}
+          diagramInfo={diagram ? { extractedEntities: diagram.nodes.length, extractedRelationships: diagram.edges.length } : undefined}
         />
       )}
 
