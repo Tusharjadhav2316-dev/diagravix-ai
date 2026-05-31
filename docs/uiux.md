@@ -8,12 +8,12 @@ Avoid flashy RGB gamer styling, excessive glow, chaotic gradients, and noisy ani
 
 ## Visual Style
 
-- Dark futuristic SaaS.
+- Dark futuristic SaaS with dynamic cloud elements.
+- Background: Animated Vanta.js (`CLOUDS2`) sky/cloud canvas (skyColor: `#5ca6ca`, cloudColor: `#334d80`, base: `#07080d`).
 - Clean spacing and strong hierarchy.
-- Subtle glass surfaces.
-- Thin borders and soft shadows.
+- Subtle glass surfaces and micro-borders (`border-white/5` overlays).
 - Premium typography.
-- Smooth but restrained motion.
+- Smooth but restrained motion utilizing Framer Motion.
 
 ## Color Tokens
 
