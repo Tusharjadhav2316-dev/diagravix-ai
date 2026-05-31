@@ -7,20 +7,20 @@
 ## Installation
 
 ### 1. Install Backend Dependencies
-\`\`\`bash
+```bash
 cd backend
 pip install -r requirements.txt
-\`\`\`
+```
 
 ### 2. Set Environment Variable
-\`\`\`bash
-export GEMINI_API_KEY="AIzaSyCyGSlZvWMS0TPzrUMRIoCl79YINbTIGM8"
-\`\`\`
+```bash
+export GEMINI_API_KEY="your_gemini_api_key_here"
+```
 
 ### 3. Start the Backend Server
-\`\`\`bash
+```bash
 python main.py
-\`\`\`
+```
 
 The backend will run on `http://localhost:8000`
 
