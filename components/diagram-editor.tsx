@@ -24,6 +24,15 @@ export default function DiagramEditor({ mode }: DiagramEditorProps) {
 
   const handleGenerateDiagram = async (text: string) => {
     try {
+      // Determine style dynamically based on keywords in prompt
+      let selectedStyle = "flowchart"
+      const lowerText = text.toLowerCase()
+      if (lowerText.includes("class") || lowerText.includes("object") || lowerText.includes("inherits")) {
+        selectedStyle = "class"
+      } else if (lowerText.includes("database") || lowerText.includes("table") || lowerText.includes("sql") || lowerText.includes("relation") || lowerText.includes("schema")) {
+        selectedStyle = "entityrelation"
+      }
+
       const response = await fetch("/api/diagram/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -32,7 +41,7 @@ export default function DiagramEditor({ mode }: DiagramEditorProps) {
           options: {
             autoLayout: true,
             enhanceWithAI: false,
-            style: "flowchart",
+            style: selectedStyle,
           },
         }),
       })

@@ -11,6 +11,8 @@ export const NodeShapeSchema = z.enum([
   "actor",
   "interface",
   "component",
+  "entity",
+  "class",
   "generic"
 ])
 

@@ -2,7 +2,7 @@
 
 import React, { memo } from "react"
 import { Handle, Position, type NodeProps } from "@xyflow/react"
-import { Database, HelpCircle, Box, Circle, Play, Square } from "lucide-react"
+import { Database, HelpCircle, Box, Circle, Play, Square, Code, ShieldAlert } from "lucide-react"
 
 // Types of shapes supported by Diagravix
 export type NodeShapeType = 
@@ -14,6 +14,8 @@ export type NodeShapeType =
   | "actor" 
   | "interface" 
   | "component" 
+  | "entity"
+  | "class"
   | "generic"
 
 interface CustomNodeData {
@@ -40,6 +42,10 @@ const CustomNode = memo(({ data, selected }: NodeProps & { data: CustomNodeData 
         return "rounded-md border-[#22c55e] bg-[#22c55e]/10 text-[#f7f8ff] border-t-4 border-b-4"
       case "actor":
         return "rounded-full aspect-square border-[#22d3ee] bg-[#22d3ee]/10 text-[#f7f8ff] max-w-[80px]"
+      case "entity":
+        return "rounded-sm border-orange-500/50 bg-orange-500/10 text-[#f7f8ff] border-l-4"
+      case "class":
+        return "rounded-none border-purple-500/50 bg-purple-500/10 text-[#f7f8ff] font-mono border-t-4"
       case "component":
       case "interface":
         return "rounded-none border-blue-500/50 bg-blue-500/10 text-[#f7f8ff]"
@@ -62,6 +68,10 @@ const CustomNode = memo(({ data, selected }: NodeProps & { data: CustomNodeData 
         return <Circle className="w-3.5 h-3.5 text-[#22d3ee]" />
       case "component":
         return <Box className="w-3.5 h-3.5 text-blue-400" />
+      case "entity":
+        return <ShieldAlert className="w-3.5 h-3.5 text-orange-400" />
+      case "class":
+        return <Code className="w-3.5 h-3.5 text-purple-400" />
       default:
         return <Square className="w-3.5 h-3.5 text-[#a5adc2]" />
     }

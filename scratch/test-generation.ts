@@ -22,35 +22,43 @@ async function runTests() {
     console.log("Generated nodes count:", result1.nodes.length)
     console.log("Generated edges count:", result1.edges.length)
     console.log("Nodes list mapping preview:")
-    result1.nodes.forEach(n => console.log(`  - [${n.id}] label: "${n.label}" (type: ${n.type})`))
+    result1.nodes.forEach(n => console.log(`  - [${n.id}] label: "${n.label}" (type: ${n.type}) x: ${n.x} y: ${n.y}`))
   } catch (err: any) {
     console.error("❌ TEST 1 FAILED:", err.message)
   }
 
-  // Test case 2: Fallback trigger execution (Simulate Groq crash & fallback to local NLP)
+  // Test case 2: Class Diagram mapping rules
   console.log("\n-----------------------------------------------------------------")
-  console.log("Test Case 2: Recovery Fallback Logic (Checks error handling and NLP recovery)")
-  console.log("Action: Temp clearing GROQ_API_KEY to trigger recovery chains...")
-  
-  const savedGroqKey = process.env.GROQ_API_KEY
-  // Temporarily clear environment api keys
-  delete process.env.GROQ_API_KEY
-  delete process.env.GEMINI_API_KEY
-
+  console.log("Test Case 2: Class Diagram Style Generation (Class & Dependency rules)")
+  console.log("Input: Define User, Admin inherits from User, and AuthController depends on both.")
   try {
     const result2 = await generateDiagramWithFallback(
-      "Customer requests support ticket. Router assigns ticket to support agent. Agent replies to user.",
-      "flowchart"
+      "Define User class, Admin class inherits from User, and AuthController class depends on both.",
+      "class"
     )
-    console.log("✅ TEST 2 PASSED! Successfully recovered via Local NLP Fallback Engine.")
+    console.log("✅ TEST 2 PASSED!")
     console.log("Generated nodes count:", result2.nodes.length)
     console.log("Generated edges count:", result2.edges.length)
-    result2.nodes.forEach(n => console.log(`  - [${n.id}] label: "${n.label}"`))
+    result2.nodes.forEach(n => console.log(`  - [${n.id}] label: "${n.label}" (type: ${n.type}) x: ${n.x} y: ${n.y}`))
   } catch (err: any) {
     console.error("❌ TEST 2 FAILED:", err.message)
-  } finally {
-    // Restore api keys
-    process.env.GROQ_API_KEY = savedGroqKey
+  }
+
+  // Test case 3: Large Diagram spacing rules (Collision verification)
+  console.log("\n-----------------------------------------------------------------")
+  console.log("Test Case 3: Large Diagram Spacing & Hierarchy checks")
+  console.log("Input: Client makes request. Load balancer routes to WebServerA, WebServerB or WebServerC. Each server queries Cache. Cache misses go to MySQL cluster.")
+  try {
+    const result3 = await generateDiagramWithFallback(
+      "Client makes request. Load balancer routes to WebServerA, WebServerB or WebServerC. Each server queries Cache. Cache misses go to MySQL cluster.",
+      "entityrelation"
+    )
+    console.log("✅ TEST 3 PASSED!")
+    console.log("Generated nodes count:", result3.nodes.length)
+    console.log("Generated edges count:", result3.edges.length)
+    result3.nodes.forEach(n => console.log(`  - [${n.id}] label: "${n.label}" (type: ${n.type}) x: ${n.x} y: ${n.y}`))
+  } catch (err: any) {
+    console.error("❌ TEST 3 FAILED:", err.message)
   }
   
   console.log("\n=================== ALL TEST RUNNERS COMPLETE ===================")

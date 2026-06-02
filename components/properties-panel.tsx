@@ -47,9 +47,15 @@ export default function PropertiesPanel({
               className="w-full mt-1 px-2 py-1 border border-border rounded bg-background text-foreground text-sm"
             >
               <option value="process">Process</option>
-              <option value="data">Data</option>
               <option value="decision">Decision</option>
+              <option value="start">Start</option>
+              <option value="end">End</option>
+              <option value="database">Database</option>
+              <option value="actor">Actor</option>
+              <option value="interface">Interface</option>
+              <option value="component">Component</option>
               <option value="entity">Entity</option>
+              <option value="class">Class</option>
             </select>
           </div>
 

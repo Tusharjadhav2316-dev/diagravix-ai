@@ -10,20 +10,26 @@ Diagram Style: ${style}
 You MUST follow these rules:
 1. Return ONLY a valid JSON object matching the JSON schema below. No conversational text, no markdown formatting (do NOT wrap in \`\`\`json).
 2. Create clear, short labels for nodes.
-3. Classify node type as one of the following:
-   - "start" or "end": for boundary/terminal steps.
+3. Classify node type dynamically:
+   - "start" or "end": for boundary/terminal flowchart steps.
    - "decision": for checks, conditions, branches, or validations.
-   - "database": for persistence or database tables.
-   - "component" or "interface": for external systems, clients, or visual components.
+   - "database": for persistence, database tables, or storages.
+   - "actor": for user personas or clients.
+   - "entity": for data models (ER diagrams) or structural concepts.
+   - "class": for system classes (class diagrams) or OOP models.
+   - "component" or "interface": for external systems, UI panels, or service layers.
    - "process": for normal actions, functions, or execution steps.
 4. Establish logical connections (edges) with labels explaining the relation (e.g. "verifies", "saves", "sends", "if yes").
-5. Automatically assign reasonable coordinates if possible, or omit them to let the auto-layout engine handle it.
+5. Customize generation parameters based on Diagram Style:
+   - If style is "entityrelation" (ER diagram): nodes must represent tables, tables/fields should be typed as "entity", relation labels should indicate keys/cardinalities (e.g. "1-to-many").
+   - If style is "class": nodes must represent classes/interfaces, typed as "class", edges represent inheritances/dependencies (e.g. "extends", "implements").
+   - If style is "flowchart": nodes represent execution stages, edges represent chronological sequences.
 
 JSON Target Schema:
 {
-  "diagram_type": "flowchart" | "mindmap" | "sequence",
+  "diagram_type": "flowchart" | "mindmap" | "sequence" | "class" | "entityrelation",
   "nodes": [
-    { "id": "unique-id", "label": "Short Name", "type": "process" | "decision" | "start" | "end" | "database" | "component" | "interface", "x": 100, "y": 200 }
+    { "id": "unique-id", "label": "Short Name", "type": "process" | "decision" | "start" | "end" | "database" | "actor" | "interface" | "component" | "entity" | "class", "x": 100, "y": 200 }
   ],
   "edges": [
     { "source": "source-node-id", "target": "target-node-id", "label": "action" }

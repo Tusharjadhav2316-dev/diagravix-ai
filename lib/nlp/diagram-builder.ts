@@ -5,7 +5,7 @@ import type { Entity, Relationship, ParsedDiagram } from "./entity-extractor"
 export interface DiagramNode {
   id: string
   label: string
-  type: "process" | "data" | "decision" | "entity"
+  type: string
   x: number
   y: number
   width: number
@@ -39,20 +39,32 @@ export function buildDiagramNodes(entities: Entity[], baseX = 100, baseY = 100):
 }
 
 // Determine node type based on entity characteristics
-function determinNodeType(entity: Entity): "process" | "data" | "decision" | "entity" {
+function determinNodeType(entity: Entity): string {
   const text = entity.text.toLowerCase()
 
   if (text.includes("data") || text.includes("input") || text.includes("output")) {
-    return "data"
+    return "interface"
   }
-  if (text.includes("decision") || text.includes("check") || text.includes("validate")) {
+  if (text.includes("decision") || text.includes("check") || text.includes("validate") || text.includes("verify")) {
     return "decision"
+  }
+  if (text.includes("database") || text.includes("store") || text.includes("table") || text.includes("sql")) {
+    return "database"
+  }
+  if (text.includes("user") || text.includes("customer") || text.includes("client") || text.includes("admin")) {
+    return "actor"
+  }
+  if (text.includes("entity") || text.includes("schema") || text.includes("model")) {
+    return "entity"
+  }
+  if (text.includes("class") || text.includes("object") || text.includes("service")) {
+    return "class"
   }
   if (text.includes("process") || text.includes("execute") || text.includes("perform")) {
     return "process"
   }
 
-  return "entity"
+  return "process"
 }
 
 // Convert relationships to diagram edges
@@ -77,55 +89,61 @@ export function buildDiagramStructure(parsed: ParsedDiagram): DiagramStructure {
   }
 }
 
-// Auto-layout nodes in a hierarchical structure
+// Auto-layout nodes with dynamic spacing, collision avoidance, and hierarchy level calculation
 export function autoLayoutNodes(nodes: DiagramNode[], edges: DiagramEdge[]): DiagramNode[] {
   const levels = new Map<string, number>()
-  let maxLevel = 0
+  const positionsInLevel = new Map<number, string[]>()
 
-  // Calculate node levels
-  function calculateLevel(nodeId: string): number {
+  // 1. Level detection using topological depth calculation
+  function getDepth(nodeId: string, visited = new Set<string>()): number {
     if (levels.has(nodeId)) return levels.get(nodeId)!
+    if (visited.has(nodeId)) return 0 // Guard circular loops
 
-    const incomingEdges = edges.filter((e) => e.target === nodeId)
-    if (incomingEdges.length === 0) {
+    visited.add(nodeId)
+    const incoming = edges.filter((e) => e.target === nodeId)
+    if (incoming.length === 0) {
       levels.set(nodeId, 0)
       return 0
     }
 
-    const maxSourceLevel = Math.max(...incomingEdges.map((e) => calculateLevel(e.source)))
-    const level = maxSourceLevel + 1
-    levels.set(nodeId, level)
-    maxLevel = Math.max(maxLevel, level)
-
-    return level
+    const depth = Math.max(...incoming.map((e) => getDepth(e.source, visited))) + 1
+    levels.set(nodeId, depth)
+    return depth
   }
 
-  // Calculate levels for all nodes
-  nodes.forEach((node) => calculateLevel(node.id))
+  // Determine levels for all nodes
+  nodes.forEach((node) => getDepth(node.id))
 
-  // Position nodes by level
-  const nodesByLevel = new Map<number, string[]>()
+  // Group nodes by level to determine vertical alignment index
   levels.forEach((level, nodeId) => {
-    if (!nodesByLevel.has(level)) {
-      nodesByLevel.set(level, [])
+    if (!positionsInLevel.has(level)) {
+      positionsInLevel.set(level, [])
     }
-    nodesByLevel.get(level)!.push(nodeId)
+    positionsInLevel.get(level)!.push(nodeId)
   })
 
-  // Layout nodes
+  // 2. Multi-column spacing & collision avoidance
+  const LEVEL_HEIGHT = 160 // Vertical distance between levels
+  const COLUMN_WIDTH = 220 // Horizontal distance between siblings
+  const BASE_X = 150
+  const BASE_Y = 100
+
   return nodes.map((node) => {
     const level = levels.get(node.id) || 0
-    const nodesInLevel = nodesByLevel.get(level) || []
-    const indexInLevel = nodesInLevel.indexOf(node.id)
-    const nodesCount = nodesInLevel.length
+    const levelNodes = positionsInLevel.get(level) || []
+    const columnIndex = levelNodes.indexOf(node.id)
+    const totalColumns = levelNodes.length
 
-    const y = 100 + level * 200
-    const x = 100 + (indexInLevel - (nodesCount - 1) / 2) * 250
+    // Center layout mathematically based on column span to reduce edge overlap and crossing
+    const offsetX = (columnIndex - (totalColumns - 1) / 2) * COLUMN_WIDTH
+    const x = BASE_X + offsetX
+    const y = BASE_Y + level * LEVEL_HEIGHT
 
     return {
       ...node,
-      x: Math.max(100, x),
-      y,
+      // Apply offset ensuring coordinates remain clean positive integers
+      x: Math.round(Math.max(50, x)),
+      y: Math.round(Math.max(50, y))
     }
   })
 }
