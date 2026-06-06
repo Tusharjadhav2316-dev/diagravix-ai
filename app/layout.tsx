@@ -19,13 +19,50 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Diagravix AI",
+    default: "Diagravix AI — Free AI Flowchart & Diagram Generator",
     template: "%s | Diagravix AI",
   },
-  description: "Turn ideas into production-ready diagrams in seconds.",
+  description: "Create UML class diagrams, database schemas, flowcharts, and sequence models instantly with plain English text. A premium, collaborative editor for developers and product teams.",
+  keywords: [
+    "AI flowchart generator",
+    "AI diagram generator",
+    "UML diagram generator",
+    "ER diagram generator",
+    "sequence diagram generator",
+    "text to diagram",
+    "mermaid generator",
+    "plantuml generator",
+    "software architecture tool"
+  ],
   generator: "Diagravix AI",
   applicationName: "Diagravix AI",
   metadataBase: new URL("https://diagravix.ai"),
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "Diagravix AI — Turn Text into Technical Diagrams Instantly",
+    description: "Describe system architectures, flows, or databases in plain English. Watch AI lay out interactive, auto-arranged diagrams on a premium vector canvas.",
+    url: "https://diagravix.ai",
+    siteName: "Diagravix AI",
+    type: "website",
+    locale: "en_US",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Diagravix AI Technical Modeling Editor Banner",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Diagravix AI — AI Flowchart & UML Diagram Generator",
+    description: "Draw architectural concepts, data structures, and chronological charts instantly with AI layout orchestration.",
+    images: ["/og-image.png"],
+    creator: "@diagravix",
+  },
   icons: {
     icon: [
       {

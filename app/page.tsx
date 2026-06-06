@@ -171,6 +171,36 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#07080d] text-[#f7f8ff] relative overflow-hidden font-sans antialiased">
+      {/* JSON-LD Schema Markup */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "Diagravix AI",
+            "description": "Create UML class diagrams, database schemas, flowcharts, and sequence models instantly with plain English text.",
+            "applicationCategory": "MultimediaApplication",
+            "operatingSystem": "All",
+            "offers": {
+              "@type": "Offer",
+              "price": "0.00",
+              "priceCurrency": "USD",
+            },
+            "featureList": [
+              "AI diagram generator",
+              "AI flowchart generator",
+              "UML diagram generator",
+              "ER diagram generator",
+              "sequence diagram generator",
+              "interactive vector canvas editing",
+              "direct image exports (PNG/SVG/PDF)",
+              "structured data exports (Mermaid/PlantUML)",
+            ],
+          }),
+        }}
+      />
+
       {/* Vanta Canvas Background */}
       <div id="vanta-canvas-bg" className="fixed inset-0 z-0 pointer-events-none opacity-50 transition-opacity duration-1000" />
       
