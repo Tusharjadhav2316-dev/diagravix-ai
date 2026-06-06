@@ -6,6 +6,9 @@ import Script from "next/script"
 import { Suspense } from "react"
 import DiagramEditor from "@/components/diagram-editor"
 import ExportToolbar from "@/components/export-toolbar"
+import ShortcutsModal from "@/components/shortcuts-modal"
+import CommandMenu from "@/components/command-menu"
+import OnboardingTour from "@/components/onboarding-tour"
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/stores/auth-store"
 import { useDashboardStore } from "@/stores/dashboard-store"
@@ -17,9 +20,19 @@ import {
   Loader2,
   CheckCircle2,
   Sparkles,
+  HelpCircle,
+  Keyboard,
 } from "lucide-react"
 import Link from "next/link"
 import type { Diagram } from "@/types/diagram"
+import {
+  exportFlowToPNG,
+  exportFlowToSVG,
+  exportFlowToPDF,
+  exportFlowToJSON,
+  exportToMermaidFile,
+  exportToPlantUMLFile,
+} from "@/lib/export/react-flow-export"
 
 function EditorContent() {
   const router = useRouter()
@@ -32,6 +45,15 @@ function EditorContent() {
   const isDirty = useEditorStore((s) => s.isDirty)
   const markSaved = useEditorStore((s) => s.markSaved)
   const setDiagram = useEditorStore((s) => s.setDiagram)
+  
+  const undo = useEditorStore((s) => s.undo)
+  const redo = useEditorStore((s) => s.redo)
+  const selectedNodeIds = useEditorStore((s) => s.selectedNodeIds)
+  const selectedEdgeIds = useEditorStore((s) => s.selectedEdgeIds)
+  const deleteElements = useEditorStore((s) => s.deleteElements)
+  const setSelectedNodeIds = useEditorStore((s) => s.setSelectedNodeIds)
+  const setSelectedEdgeIds = useEditorStore((s) => s.setSelectedEdgeIds)
+  const addNode = useEditorStore((s) => s.addNode)
 
   const [mode, setMode] = useState<"draw" | "generate">("generate")
   const [threeLoaded, setThreeLoaded] = useState(false)
@@ -39,10 +61,216 @@ function EditorContent() {
   const [loadingDiagram, setLoadingDiagram] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
 
+  // Dialog & Walkthrough States
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [commandMenuOpen, setCommandMenuOpen] = useState(false)
+  const [tourOpen, setTourOpen] = useState(false)
+
   // Canvas container ref — passed to ExportToolbar for html-to-image
   const flowContainerRef = useRef<HTMLDivElement>(null)
 
+  // Autosave: 4s debounce
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Manual save
+  const handleSave = useCallback(async () => {
+    if (!diagram || !user?.uid) {
+      if (!user) toast.error("Please sign in to save diagrams.")
+      return
+    }
+    const id = await upsertDiagram(user.uid, diagram, currentDiagramId, diagram.title)
+    if (id) {
+      markSaved()
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3000)
+      toast.success("Diagram saved!")
+      if (!currentDiagramId) {
+        router.replace(`/editor?id=${id}`, { scroll: false })
+      }
+    }
+  }, [diagram, user?.uid, currentDiagramId, upsertDiagram, markSaved, router])
+
+  // Tour Auto-Trigger Effect
+  useEffect(() => {
+    const hasOnboarded = localStorage.getItem("diagravix_onboarded")
+    if (!hasOnboarded) {
+      const timer = setTimeout(() => {
+        setTourOpen(true)
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [])
+
+  // Keyboard Shortcuts Listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement
+      const isInput =
+        activeEl?.tagName === "INPUT" ||
+        activeEl?.tagName === "TEXTAREA" ||
+        activeEl?.getAttribute("contenteditable") === "true"
+
+      if (isInput && e.key !== "Escape") return
+
+      // Ctrl + S (Save)
+      if (e.key === "s" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        handleSave()
+      }
+      // Ctrl + Z (Undo)
+      if (e.key === "z" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        undo()
+      }
+      // Ctrl + Y (Redo)
+      if (e.key === "y" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        redo()
+      }
+      // ? or Ctrl + H (Shortcuts Modal)
+      if (e.key === "?" || (e.key === "h" && (e.ctrlKey || e.metaKey))) {
+        e.preventDefault()
+        setShortcutsOpen(true)
+      }
+      // Escape (Clear selection)
+      if (e.key === "Escape") {
+        setSelectedNodeIds([])
+        setSelectedEdgeIds([])
+      }
+      // Delete or Backspace
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (selectedNodeIds.length > 0 || selectedEdgeIds.length > 0) {
+          e.preventDefault()
+          deleteElements(selectedNodeIds, selectedEdgeIds)
+          toast.success("Deleted selected canvas elements.")
+        }
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [handleSave, undo, redo, selectedNodeIds, selectedEdgeIds, deleteElements, setSelectedNodeIds, setSelectedEdgeIds])
+
+  // Command Menu Action Handler
+  const handleCommandAction = useCallback(async (action: string) => {
+    if (!diagram) {
+      toast.error("No active diagram to run commands on.")
+      return
+    }
+
+    const name = diagram.title || "diagram"
+    const el = flowContainerRef.current?.querySelector(".react-flow") as HTMLElement | null
+
+    switch (action) {
+      case "save":
+        handleSave()
+        break
+      case "undo":
+        undo()
+        toast.success("Undo action executed.")
+        break
+      case "redo":
+        redo()
+        toast.success("Redo action executed.")
+        break
+      case "add-node":
+        const newNode = {
+          id: `node-${Date.now()}`,
+          label: "New Node",
+          type: "process",
+          position: { x: 250, y: 250 },
+          width: 150,
+          height: 60,
+        }
+        addNode(newNode)
+        toast.success("Added a new node to the canvas.")
+        break
+      case "clear":
+        setDiagram({
+          ...diagram,
+          nodes: [],
+          edges: [],
+          updatedAt: new Date().toISOString(),
+        })
+        toast.success("Canvas cleared!")
+        break
+      case "toggle-visibility":
+        if (!currentDiagramId || !user?.uid) {
+          toast.error("Save the diagram first to toggle visibility.")
+          return
+        }
+        const newVisibility = diagram.visibility === "private" ? "public" : "private"
+        try {
+          const { doc, updateDoc } = await import("firebase/firestore")
+          const { db } = await import("@/firebase/client")
+          await updateDoc(doc(db, "diagrams", currentDiagramId), {
+            visibility: newVisibility,
+            "data.visibility": newVisibility,
+          })
+          setDiagram({
+            ...diagram,
+            visibility: newVisibility,
+          })
+          toast.success(
+            newVisibility === "public"
+              ? "Diagram is now public — anyone with the link can view!"
+              : "Diagram is now private."
+          )
+        } catch (err) {
+          toast.error("Failed to update visibility.")
+        }
+        break
+      case "copy-link":
+        if (!currentDiagramId) {
+          toast.error("Save the diagram first to copy share link.")
+          return
+        }
+        const url = `${window.location.origin}/share/${currentDiagramId}`
+        await navigator.clipboard.writeText(url)
+        toast.success("Share link copied to clipboard!")
+        break
+      case "export-png":
+        if (!el) return toast.error("Canvas element not found.")
+        await exportFlowToPNG(el, name, 2)
+        toast.success("PNG exported (Standard 2x)!")
+        break
+      case "export-png-hq":
+        if (!el) return toast.error("Canvas element not found.")
+        await exportFlowToPNG(el, name, 3)
+        toast.success("PNG exported (Print Quality 3x)!")
+        break
+      case "export-svg":
+        if (!el) return toast.error("Canvas element not found.")
+        await exportFlowToSVG(el, name)
+        toast.success("SVG exported successfully!")
+        break
+      case "export-pdf":
+        if (!el) return toast.error("Canvas element not found.")
+        await exportFlowToPDF(el, name)
+        toast.success("PDF exported successfully!")
+        break
+      case "export-json":
+        exportFlowToJSON(diagram, name)
+        toast.success("JSON data file exported!")
+        break
+      case "export-mermaid":
+        exportToMermaidFile(diagram, name)
+        toast.success("Mermaid code file (.mmd) exported!")
+        break
+      case "export-plantuml":
+        exportToPlantUMLFile(diagram, name)
+        toast.success("PlantUML file (.puml) exported!")
+        break
+      case "open-shortcuts":
+        setShortcutsOpen(true)
+        break
+      case "reset-tour":
+        setTourOpen(true)
+        break
+      default:
+        break
+    }
+  }, [diagram, currentDiagramId, user?.uid, handleSave, undo, redo, addNode, setDiagram])
 
   // Load diagram from URL param
   useEffect(() => {
@@ -88,23 +316,7 @@ function EditorContent() {
     return () => { if (vantaEffect) vantaEffect.destroy() }
   }, [vantaLoaded])
 
-  // Manual save
-  const handleSave = useCallback(async () => {
-    if (!diagram || !user?.uid) {
-      if (!user) toast.error("Please sign in to save diagrams.")
-      return
-    }
-    const id = await upsertDiagram(user.uid, diagram, currentDiagramId, diagram.title)
-    if (id) {
-      markSaved()
-      setSaveSuccess(true)
-      setTimeout(() => setSaveSuccess(false), 3000)
-      toast.success("Diagram saved!")
-      if (!currentDiagramId) {
-        router.replace(`/editor?id=${id}`, { scroll: false })
-      }
-    }
-  }, [diagram, user?.uid, currentDiagramId, upsertDiagram, markSaved, router])
+
 
   // Autosave: 4s debounce
   useEffect(() => {
@@ -226,6 +438,30 @@ function EditorContent() {
                 <span className="hidden sm:inline">Save</span>
               </Button>
 
+              {/* Command Menu & Shortcuts manual triggers */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCommandMenuOpen(true)}
+                className="hidden lg:flex border-white/10 text-[#a5adc2] hover:text-[#f7f8ff] hover:bg-white/5 text-xs h-8 px-3 gap-2"
+                title="Open Command Palette (Ctrl+K)"
+              >
+                <Keyboard className="w-3.5 h-3.5" />
+                <span className="bg-[#07080d] text-[10px] text-[#677086] border border-white/10 px-1 py-0.5 rounded font-mono">
+                  Ctrl+K
+                </span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShortcutsOpen(true)}
+                className="border-white/10 text-[#a5adc2] hover:text-[#f7f8ff] hover:bg-white/5 text-xs h-8 w-8 p-0"
+                title="Keyboard Shortcuts (?)"
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+              </Button>
+
               {user && (
                 <Link href="/dashboard">
                   <Button
@@ -259,6 +495,23 @@ function EditorContent() {
           </div>
         )}
       </div>
+
+      {/* Modals & Dialogs */}
+      <ShortcutsModal open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+
+      <CommandMenu
+        open={commandMenuOpen}
+        onOpenChange={setCommandMenuOpen}
+        onAction={handleCommandAction}
+      />
+
+      <OnboardingTour
+        open={tourOpen}
+        onClose={() => {
+          setTourOpen(false)
+          localStorage.setItem("diagravix_onboarded", "true")
+        }}
+      />
     </main>
   )
 }

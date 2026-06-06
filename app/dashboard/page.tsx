@@ -20,6 +20,8 @@ import {
   Cpu,
   Layers,
   ExternalLink,
+  Menu,
+  X,
 } from "lucide-react"
 import { useAuthStore } from "@/stores/auth-store"
 import { useDashboardStore } from "@/stores/dashboard-store"
@@ -63,6 +65,7 @@ export default function DashboardPage() {
   const setDiagram = useEditorStore((s) => s.setDiagram)
   const [search, setSearch] = useState("")
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Protect route
   useEffect(() => {
@@ -111,15 +114,31 @@ export default function DashboardPage() {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#22d3ee]/5 rounded-full blur-3xl" />
       </div>
 
+      {/* Sidebar Mobile Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <div className="flex min-h-screen relative z-10">
-        <aside className="w-64 border-r border-white/5 bg-[#0d1018]/60 backdrop-blur-md flex flex-col p-4 gap-2 fixed h-full">
+        <aside className={`w-64 border-r border-white/5 bg-[#0d1018] md:bg-[#0d1018]/60 md:backdrop-blur-md flex flex-col p-4 gap-2 fixed h-full z-40 transition-transform duration-300 md:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
           {/* Logo */}
-          <div className="flex items-center gap-2 px-2 py-3 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-[#7c5cff] flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-white" />
+          <div className="flex items-center justify-between px-2 py-3 mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-[#7c5cff] flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-lg font-bold tracking-tight">Diagravix AI</span>
             </div>
-            <span className="text-lg font-bold tracking-tight">Diagravix AI</span>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-1.5 rounded hover:bg-white/5 text-[#a5adc2] hover:text-[#f7f8ff] md:hidden"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Nav Items */}
@@ -171,27 +190,35 @@ export default function DashboardPage() {
         </aside>
 
         {/* Main Content */}
-        <main className="ml-64 flex-1 p-8">
+        <main className="md:ml-64 flex-1 p-4 md:p-8 transition-all duration-300 min-w-0">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-2xl font-bold text-[#f7f8ff]">
-                Welcome back, {user.username?.split("_")[0] ?? "there"} 👋
-              </h1>
-              <p className="text-sm text-[#677086] mt-1">
-                Manage your AI-generated diagrams and projects.
-              </p>
+          <div className="flex items-center justify-between mb-8 gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 rounded-lg bg-[#0d1018] border border-white/5 text-[#a5adc2] hover:text-[#f7f8ff] md:hidden flex-shrink-0"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <div className="min-w-0">
+                <h1 className="text-xl md:text-2xl font-bold text-[#f7f8ff] truncate">
+                  Welcome back, {user.username?.split("_")[0] ?? "there"} 👋
+                </h1>
+                <p className="text-xs md:text-sm text-[#677086] mt-1 truncate">
+                  Manage your AI-generated diagrams and projects.
+                </p>
+              </div>
             </div>
-            <Link href="/editor">
-              <Button className="bg-[#7c5cff] hover:bg-[#7c5cff]/90 text-white gap-2 rounded-lg px-5">
+            <Link href="/editor" className="flex-shrink-0">
+              <Button className="bg-[#7c5cff] hover:bg-[#7c5cff]/90 text-white gap-2 rounded-lg px-3 md:px-5 text-xs md:text-sm h-9 md:h-10">
                 <Plus className="w-4 h-4" />
-                New Diagram
+                <span className="hidden sm:inline">New Diagram</span>
               </Button>
             </Link>
           </div>
 
           {/* Stats Row */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
             {[
               {
                 label: "Total Diagrams",
@@ -279,8 +306,18 @@ export default function DashboardPage() {
               {Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}
-                  className="border border-white/5 rounded-xl bg-[#0d1018]/30 p-5 h-40 animate-pulse"
-                />
+                  className="border border-white/5 rounded-xl bg-[#0d1018]/30 p-5 h-40 animate-pulse flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="w-10 h-10 rounded-lg bg-white/5 mb-4" />
+                    <div className="h-4 bg-white/5 rounded w-2/3 mb-2" />
+                    <div className="h-3 bg-white/5 rounded w-1/2" />
+                  </div>
+                  <div className="flex justify-between items-center mt-4 pt-2 border-t border-white/5">
+                    <div className="h-3 bg-white/5 rounded w-1/4" />
+                    <div className="h-3 bg-white/5 rounded w-1/6" />
+                  </div>
+                </div>
               ))}
             </div>
           )}

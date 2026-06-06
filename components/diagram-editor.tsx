@@ -6,6 +6,7 @@ import GenerationPanel from "./generation-panel"
 import EditorCanvas from "./editor-canvas"
 import PropertiesPanel from "./properties-panel"
 import { useEditorStore } from "@/stores/editor-store"
+import { Sparkles } from "lucide-react"
 
 interface DiagramEditorProps {
   mode: "draw" | "generate"
@@ -145,11 +146,47 @@ export default function DiagramEditor({ mode }: DiagramEditorProps) {
             onAddNode={handleAddNode}
           />
         ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center text-muted-foreground">
-              <p className="text-lg mb-2">
-                Enter text on the left to generate a diagram
-              </p>
+          <div className="flex items-center justify-center h-full p-8 select-none">
+            <div className="max-w-md text-center space-y-6">
+              <div className="relative inline-block">
+                <div className="w-16 h-16 rounded-2xl bg-[#7c5cff]/10 border border-[#7c5cff]/20 flex items-center justify-center mx-auto text-[#7c5cff] shadow-lg shadow-[#7c5cff]/5">
+                  <Sparkles className="w-8 h-8 animate-pulse" />
+                </div>
+                <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-[#7c5cff] to-[#22d3ee] opacity-15 blur-md pointer-events-none" />
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-[#f7f8ff]">Your Canvas is Ready</h3>
+                <p className="text-xs text-[#a5adc2] leading-relaxed max-w-xs mx-auto">
+                  Type a prompt in the AI Generate panel on the left to build a diagram, or switch to Manual Draw to construct custom layout elements manually.
+                </p>
+              </div>
+
+              {/* Quick suggestions/hints */}
+              <div className="grid grid-cols-1 gap-2 pt-2 text-left max-w-xs mx-auto">
+                {[
+                  "OAuth login flow with DB checks",
+                  "Database schema for payment records",
+                  "Microservice API gateway architecture",
+                ].map((sug, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-lg border border-white/5 bg-[#0d1018]/40 text-[11px] text-[#a5adc2] hover:border-white/10 hover:bg-[#0d1018]/80 transition-all duration-200"
+                  >
+                    <span className="text-[#7c5cff] font-semibold">Try:</span> "{sug}"
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-center gap-3 pt-4 text-[10px] text-[#677086] font-mono">
+                <span className="flex items-center gap-1">
+                  Press <kbd className="bg-[#07080d] border border-white/10 px-1 py-0.5 rounded text-[#f7f8ff] font-mono font-bold">Ctrl</kbd> + <kbd className="bg-[#07080d] border border-white/10 px-1 py-0.5 rounded text-[#f7f8ff] font-mono font-bold">K</kbd> for commands
+                </span>
+                <span>·</span>
+                <span className="flex items-center gap-1">
+                  Press <kbd className="bg-[#07080d] border border-white/10 px-1 py-0.5 rounded text-[#f7f8ff] font-mono font-bold">?</kbd> for help
+                </span>
+              </div>
             </div>
           </div>
         )}
