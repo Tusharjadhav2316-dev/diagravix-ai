@@ -15,8 +15,10 @@ service cloud.firestore {
     // DIAGRAMS collection
     // ==============================
     match /diagrams/{diagramId} {
-      // Only the owner can read their own diagrams
-      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      // Owner can always read their own diagrams
+      // Anyone can read PUBLIC diagrams (for share page)
+      allow read: if (request.auth != null && resource.data.uid == request.auth.uid)
+                  || resource.data.visibility == 'public';
 
       // Only authenticated users can create diagrams (must set own uid)
       allow create: if request.auth != null
