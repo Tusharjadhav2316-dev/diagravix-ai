@@ -1,31 +1,45 @@
+"use client"
+/**
+ * Firebase Auth Store (Zustand)
+ * Replaces the previous mock Zustand auth with real Firebase Auth.
+ * Handles Google login, email/password login, register, logout.
+ * Persists the lightweight session info to localStorage for instant hydration.
+ */
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import {
+  signInWithGoogle,
+  signInWithEmail,
+  registerWithEmail,
+  firebaseSignOut,
+  subscribeToAuth,
+  getUserProfile,
+  type FirebaseUserProfile,
+} from "@/services/firebase-auth"
+import type { User } from "firebase/auth"
 
 export interface UserSession {
+  uid: string
   username: string
   email: string
+  photoURL: string | null
   createdAt: string
-}
-
-interface RegisterUser {
-  username: string
-  email: string
-  passwordHash: string
 }
 
 interface AuthState {
   user: UserSession | null
-  users: RegisterUser[]
-  activeOtpCode: string | null
-  activeOtpUser: string | null
+  firebaseUser: User | null
+  profile: FirebaseUserProfile | null
   loading: boolean
   error: string | null
-  
-  registerUser: (username: string, email: string, password: string) => Promise<boolean>
-  loginUser: (usernameOrEmail: string, password: string) => Promise<boolean>
-  logoutUser: () => void
-  sendOtp: (username: string) => Promise<boolean>
-  verifyOtpAndResetPassword: (username: string, otp: string, newPassword: string) => Promise<boolean>
+  hydrated: boolean
+
+  // Actions
+  loginWithGoogle: () => Promise<boolean>
+  loginWithEmail: (email: string, password: string) => Promise<boolean>
+  registerWithEmail: (name: string, email: string, password: string) => Promise<boolean>
+  logoutUser: () => Promise<void>
+  setFirebaseUser: (user: User | null) => void
   clearError: () => void
 }
 
@@ -33,140 +47,129 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      // Seed with a default demo user so it works instantly out of the box
-      users: [
-        {
-          username: "demo_user",
-          email: "demo@diagravix.ai",
-          passwordHash: "password123", // Simplified mock hashing
-        },
-      ],
-      activeOtpCode: null,
-      activeOtpUser: null,
+      firebaseUser: null,
+      profile: null,
       loading: false,
       error: null,
+      hydrated: false,
 
-      registerUser: async (username, email, password) => {
-        set({ loading: true, error: null })
-        
-        // Wait to simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 800))
-        
-        const { users } = get()
-        const userExists = users.some(
-          (u) => u.username.toLowerCase() === username.toLowerCase() || u.email.toLowerCase() === email.toLowerCase()
-        )
-
-        if (userExists) {
-          set({ error: "Username or Email already registered.", loading: false })
-          return false
+      setFirebaseUser: async (firebaseUser) => {
+        if (firebaseUser) {
+          const profile = await getUserProfile(firebaseUser.uid)
+          set({
+            firebaseUser,
+            user: {
+              uid: firebaseUser.uid,
+              username: firebaseUser.displayName ?? firebaseUser.email?.split("@")[0] ?? "User",
+              email: firebaseUser.email ?? "",
+              photoURL: firebaseUser.photoURL ?? null,
+              createdAt: profile?.createdAt ?? new Date().toISOString(),
+            },
+            profile,
+            hydrated: true,
+          })
+        } else {
+          set({ firebaseUser: null, user: null, profile: null, hydrated: true })
         }
-
-        const newUser: RegisterUser = {
-          username,
-          email,
-          passwordHash: password, // In production, hash this password
-        }
-
-        set({
-          users: [...users, newUser],
-          user: {
-            username,
-            email,
-            createdAt: new Date().toISOString(),
-          },
-          loading: false,
-        })
-        return true
       },
 
-      loginUser: async (usernameOrEmail, password) => {
+      loginWithGoogle: async () => {
         set({ loading: true, error: null })
-        
-        await new Promise((resolve) => setTimeout(resolve, 800))
-        
-        const { users } = get()
-        const found = users.find(
-          (u) =>
-            (u.username.toLowerCase() === usernameOrEmail.toLowerCase() ||
-              u.email.toLowerCase() === usernameOrEmail.toLowerCase()) &&
-            u.passwordHash === password
-        )
-
-        if (!found) {
-          set({ error: "Invalid credentials.", loading: false })
+        try {
+          const fbUser = await signInWithGoogle()
+          const profile = await getUserProfile(fbUser.uid)
+          set({
+            firebaseUser: fbUser,
+            user: {
+              uid: fbUser.uid,
+              username: fbUser.displayName ?? fbUser.email?.split("@")[0] ?? "User",
+              email: fbUser.email ?? "",
+              photoURL: fbUser.photoURL ?? null,
+              createdAt: profile?.createdAt ?? new Date().toISOString(),
+            },
+            profile,
+            loading: false,
+          })
+          return true
+        } catch (err: any) {
+          set({ error: err.message ?? "Google sign-in failed.", loading: false })
           return false
         }
-
-        set({
-          user: {
-            username: found.username,
-            email: found.email,
-            createdAt: new Date().toISOString(),
-          },
-          loading: false,
-        })
-        return true
       },
 
-      logoutUser: () => {
-        set({ user: null })
-      },
-
-      sendOtp: async (username) => {
+      loginWithEmail: async (email, password) => {
         set({ loading: true, error: null })
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        
-        const { users } = get()
-        const found = users.some((u) => u.username.toLowerCase() === username.toLowerCase())
-        
-        if (!found) {
-          set({ error: "Username not found.", loading: false })
+        try {
+          const fbUser = await signInWithEmail(email, password)
+          const profile = await getUserProfile(fbUser.uid)
+          set({
+            firebaseUser: fbUser,
+            user: {
+              uid: fbUser.uid,
+              username: fbUser.displayName ?? fbUser.email?.split("@")[0] ?? "User",
+              email: fbUser.email ?? "",
+              photoURL: fbUser.photoURL ?? null,
+              createdAt: profile?.createdAt ?? new Date().toISOString(),
+            },
+            profile,
+            loading: false,
+          })
+          return true
+        } catch (err: any) {
+          const msg =
+            err.code === "auth/invalid-credential" ||
+            err.code === "auth/wrong-password" ||
+            err.code === "auth/user-not-found"
+              ? "Invalid email or password."
+              : err.message ?? "Login failed."
+          set({ error: msg, loading: false })
           return false
         }
-
-        // Mock OTP code generated
-        const otpCode = "123456" 
-        set({
-          activeOtpCode: otpCode,
-          activeOtpUser: username,
-          loading: false,
-        })
-        console.log(`[MOCK OTP] Sent OTP code "${otpCode}" to user "${username}"`)
-        return true
       },
 
-      verifyOtpAndResetPassword: async (username, otp, newPassword) => {
+      registerWithEmail: async (name, email, password) => {
         set({ loading: true, error: null })
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        
-        const { activeOtpCode, activeOtpUser, users } = get()
-        if (activeOtpUser?.toLowerCase() !== username.toLowerCase() || activeOtpCode !== otp) {
-          set({ error: "Invalid OTP code verification.", loading: false })
+        try {
+          const fbUser = await registerWithEmail(name, email, password)
+          const profile = await getUserProfile(fbUser.uid)
+          set({
+            firebaseUser: fbUser,
+            user: {
+              uid: fbUser.uid,
+              username: name,
+              email: fbUser.email ?? "",
+              photoURL: null,
+              createdAt: new Date().toISOString(),
+            },
+            profile,
+            loading: false,
+          })
+          return true
+        } catch (err: any) {
+          const msg =
+            err.code === "auth/email-already-in-use"
+              ? "This email is already registered."
+              : err.code === "auth/weak-password"
+              ? "Password must be at least 6 characters."
+              : err.message ?? "Registration failed."
+          set({ error: msg, loading: false })
           return false
         }
+      },
 
-        // Update password hash in users array
-        const updatedUsers = users.map((u) =>
-          u.username.toLowerCase() === username.toLowerCase()
-            ? { ...u, passwordHash: newPassword }
-            : u
-        )
-
-        set({
-          users: updatedUsers,
-          activeOtpCode: null,
-          activeOtpUser: null,
-          loading: false,
-        })
-        return true
+      logoutUser: async () => {
+        await firebaseSignOut()
+        set({ user: null, firebaseUser: null, profile: null })
       },
 
       clearError: () => set({ error: null }),
     }),
     {
-      name: "diagravix-auth",
-      partialize: (state) => ({ users: state.users, user: state.user }), // Save only persistent data
+      name: "diagravix-firebase-auth",
+      // Only persist lightweight session data (no full firebase User object)
+      partialize: (state) => ({
+        user: state.user,
+      }),
     }
   )
 )

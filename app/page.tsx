@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import Script from "next/script"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
@@ -14,7 +15,8 @@ import {
   User,
   Lock,
   Mail,
-  ArrowLeft
+  ArrowLeft,
+  Chrome
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -29,14 +31,19 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog"
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp"
 
 export default function LandingPage() {
-  const { user, loading, error, loginUser, registerUser, sendOtp, verifyOtpAndResetPassword, logoutUser, clearError } = useAuthStore()
+  const router = useRouter()
+  const { 
+    user, 
+    loading, 
+    error, 
+    loginWithEmail, 
+    loginWithGoogle, 
+    registerWithEmail, 
+    logoutUser, 
+    clearError 
+  } = useAuthStore()
 
   // Dynamic CDN Scripts states
   const [threeLoaded, setThreeLoaded] = useState(false)
@@ -44,37 +51,24 @@ export default function LandingPage() {
 
   // Auth Dialog States
   const [authOpen, setAuthOpen] = useState(false)
-  const [authMode, setAuthMode] = useState<"login" | "register" | "forgot">("login")
-  
-  // Forgot Password Wizard States
-  const [forgotStep, setForgotStep] = useState<"username" | "otp" | "reset">("username")
-  const [resetTimer, setResetTimer] = useState(60)
-  const [resendActive, setResendActive] = useState(false)
+  const [authMode, setAuthMode] = useState<"login" | "register">("login")
 
   // Form Inputs
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [otpVal, setOtpVal] = useState("")
   
   // Interactive Hero Preview Demo State
   const [demoPrompt, setDemoPrompt] = useState("User signs up, database verifies, dashboard loads")
   const [demoGenerating, setDemoGenerating] = useState(false)
   const [demoStep, setDemoStep] = useState(0)
 
-  // Timer for OTP Resend
+  // Redirect logged-in user to dashboard
   useEffect(() => {
-    let interval: NodeJS.Timeout
-    if (authOpen && authMode === "forgot" && forgotStep === "otp" && resetTimer > 0) {
-      interval = setInterval(() => {
-        setResetTimer((t) => t - 1)
-      }, 1000)
-    } else if (resetTimer === 0) {
-      setResendActive(true)
+    if (user) {
+      // Don't auto-redirect, let them use the landing page buttons
     }
-    return () => clearInterval(interval)
-  }, [authOpen, authMode, forgotStep, resetTimer])
+  }, [user, router])
 
   // Clear errors when changing tabs
   useEffect(() => {
@@ -114,18 +108,30 @@ export default function LandingPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!username.trim() || !password.trim()) {
+    if (!email.trim() || !password.trim()) {
       toast.error("Please fill in all credentials.")
       return
     }
-    const success = await loginUser(username, password)
+    const success = await loginWithEmail(email, password)
     if (success) {
-      toast.success("Successfully logged in!")
+      toast.success("Welcome back!")
       setAuthOpen(false)
-      setUsername("")
+      setEmail("")
       setPassword("")
+      router.push("/dashboard")
     } else {
-      toast.error(error || "Invalid username/email or password.")
+      toast.error(error || "Invalid email or password.")
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    const success = await loginWithGoogle()
+    if (success) {
+      toast.success("Signed in with Google!")
+      setAuthOpen(false)
+      router.push("/dashboard")
+    } else {
+      toast.error(error || "Google sign-in failed.")
     }
   }
 
@@ -139,64 +145,16 @@ export default function LandingPage() {
       toast.error("Password must be at least 6 characters.")
       return
     }
-    const success = await registerUser(username, email, password)
+    const success = await registerWithEmail(username, email, password)
     if (success) {
-      toast.success("Registration successful!")
+      toast.success("Account created! Welcome to Diagravix.")
       setAuthOpen(false)
       setUsername("")
       setEmail("")
       setPassword("")
+      router.push("/dashboard")
     } else {
       toast.error(error || "Registration failed.")
-    }
-  }
-
-  const handleForgotUsername = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!username.trim()) {
-      toast.error("Please enter your username.")
-      return
-    }
-    const success = await sendOtp(username)
-    if (success) {
-      toast.success("A validation code has been sent! Check your logs.")
-      setForgotStep("otp")
-      setResetTimer(60)
-      setResendActive(false)
-    } else {
-      toast.error(error || "Username not found.")
-    }
-  }
-
-  const handleForgotOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (otpVal.length < 6) {
-      toast.error("Please enter a valid 6-digit verification code.")
-      return
-    }
-    setForgotStep("reset")
-  }
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters.")
-      return
-    }
-    if (password !== confirmPassword) {
-      toast.error("Passwords do not match.")
-      return
-    }
-    const success = await verifyOtpAndResetPassword(username, otpVal, password)
-    if (success) {
-      toast.success("Password reset successfully! You can now log in.")
-      setAuthMode("login")
-      setForgotStep("username")
-      setPassword("")
-      setConfirmPassword("")
-      setOtpVal("")
-    } else {
-      toast.error(error || "Failed to reset password.")
     }
   }
 
@@ -252,14 +210,19 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             {user ? (
               <>
+                <Link href="/dashboard">
+                  <Button variant="ghost" className="text-[#a5adc2] hover:text-[#f7f8ff] hover:bg-[#0d1018]/50 text-sm">
+                    Dashboard
+                  </Button>
+                </Link>
                 <Link href="/editor">
-                  <Button variant="default" className="bg-[#7c5cff] hover:bg-[#7c5cff]/90 text-white rounded-lg px-5">
+                  <Button className="bg-[#7c5cff] hover:bg-[#7c5cff]/90 text-white rounded-lg px-5">
                     Go to Editor
                     <ArrowRight className="w-4 h-4 ml-1" />
                   </Button>
                 </Link>
                 <Button 
-                  onClick={logoutUser} 
+                  onClick={() => { logoutUser(); toast.success("Signed out.") }} 
                   variant="outline" 
                   className="border-white/10 hover:bg-[#0d1018] text-[#a5adc2] hover:text-[#f7f8ff]"
                 >
@@ -308,7 +271,7 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-4">
             {user ? (
-              <Link href="/editor" className="w-full sm:w-auto">
+              <Link href="/dashboard" className="w-full sm:w-auto">
                 <Button 
                   size="lg" 
                   className="bg-[#7c5cff] hover:bg-[#7c5cff]/90 text-white font-semibold px-8 rounded-lg shadow-lg shadow-[#7c5cff]/20 w-full sm:w-auto"
@@ -489,7 +452,7 @@ export default function LandingPage() {
 
           <div className="space-y-3 text-left">
             <div className="text-4xl font-black text-[#22d3ee]/20">02</div>
-            <h4 className="font-bold text-[#f7f8ff]">Analyze & Generate</h4>
+            <h4 className="font-bold text-[#f7f8ff]">Analyze &amp; Generate</h4>
             <p className="text-xs text-[#a5adc2]">Our AI service runs validations, structures nodes, calculates coordinates, and models the layout schema.</p>
           </div>
 
@@ -501,7 +464,7 @@ export default function LandingPage() {
 
           <div className="space-y-3 text-left">
             <div className="text-4xl font-black text-[#7c5cff]/20">04</div>
-            <h4 className="font-bold text-[#f7f8ff]">Sync & Export</h4>
+            <h4 className="font-bold text-[#f7f8ff]">Sync &amp; Export</h4>
             <p className="text-xs text-[#a5adc2]">Save directly to your cloud dashboard or export code definitions (Mermaid/PlantUML) to commit straight to your Git docs.</p>
           </div>
         </div>
@@ -541,49 +504,58 @@ export default function LandingPage() {
             <span className="font-semibold text-[#f7f8ff]">Diagravix AI</span>
           </div>
           <div>
-            &copy; {new Date().getFullYear()} Diagravix AI. Built with Gemini & React Flow.
+            &copy; {new Date().getFullYear()} Diagravix AI. Built with Gemini &amp; React Flow.
           </div>
         </div>
       </footer>
 
-      {/* Authentication Modal / Wizard */}
+      {/* Authentication Modal */}
       <Dialog open={authOpen} onOpenChange={setAuthOpen}>
         <DialogContent className="bg-[#0d1018] border border-white/5 text-primary max-w-md w-full p-6 shadow-2xl">
           
           {authMode === "login" && (
-            <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-4">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold text-[#f7f8ff]">Welcome Back</DialogTitle>
                 <DialogDescription className="text-[#a5adc2] text-xs">
-                  Enter your credentials to access your saved diagrams.
+                  Sign in to access your saved diagrams and dashboard.
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-3">
+              {/* Google Login */}
+              <Button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium rounded-lg gap-2"
+              >
+                <Chrome className="w-4 h-4" />
+                {loading ? "Signing in..." : "Continue with Google"}
+              </Button>
+
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-xs text-[#677086]">or</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-[#a5adc2] uppercase">Username or Email</label>
+                  <label className="text-[11px] font-semibold text-[#a5adc2] uppercase">Email Address</label>
                   <div className="relative">
-                    <User className="absolute left-3 top-3 w-4 h-4 text-[#677086]" />
+                    <Mail className="absolute left-3 top-3 w-4 h-4 text-[#677086]" />
                     <Input 
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="demo_user or demo@diagravix.ai"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
                       className="pl-9 bg-[#07080d] border-white/5 focus:border-[#7c5cff] text-[#f7f8ff] text-sm rounded-lg"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[11px] font-semibold text-[#a5adc2] uppercase">Password</label>
-                    <button 
-                      type="button" 
-                      onClick={() => setAuthMode("forgot")}
-                      className="text-[11px] text-[#22d3ee] hover:underline animate-pulse"
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
+                  <label className="text-[11px] font-semibold text-[#a5adc2] uppercase">Password</label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 w-4 h-4 text-[#677086]" />
                     <Input 
@@ -595,15 +567,15 @@ export default function LandingPage() {
                     />
                   </div>
                 </div>
-              </div>
 
-              <Button 
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#7c5cff] hover:bg-[#7c5cff]/95 text-white font-medium py-2 rounded-lg mt-2"
-              >
-                {loading ? "Authenticating..." : "Sign In"}
-              </Button>
+                <Button 
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-[#7c5cff] hover:bg-[#7c5cff]/95 text-white font-medium py-2 rounded-lg mt-2"
+                >
+                  {loading ? "Signing in..." : "Sign In"}
+                </Button>
+              </form>
 
               <div className="text-center text-xs text-[#a5adc2] pt-2">
                 Don&apos;t have an account?{" "}
@@ -615,21 +587,46 @@ export default function LandingPage() {
                   Create one
                 </button>
               </div>
-            </form>
+            </div>
           )}
 
           {authMode === "register" && (
-            <form onSubmit={handleRegister} className="space-y-4">
+            <div className="space-y-4">
               <DialogHeader>
-                <DialogTitle className="text-xl font-bold text-[#f7f8ff]">Create Account</DialogTitle>
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={() => setAuthMode("login")}
+                    className="text-[#a5adc2] hover:text-[#f7f8ff] mr-1"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
+                  <DialogTitle className="text-xl font-bold text-[#f7f8ff]">Create Account</DialogTitle>
+                </div>
                 <DialogDescription className="text-[#a5adc2] text-xs">
-                  Save diagram models, collaborate, and export vectors.
+                  Save diagrams, collaborate, and export vectors.
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-3">
+              {/* Google Register */}
+              <Button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium rounded-lg gap-2"
+              >
+                <Chrome className="w-4 h-4" />
+                {loading ? "Connecting..." : "Sign up with Google"}
+              </Button>
+
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-xs text-[#677086]">or</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
+
+              <form onSubmit={handleRegister} className="space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-[#a5adc2] uppercase">Username</label>
+                  <label className="text-[11px] font-semibold text-[#a5adc2] uppercase">Display Name</label>
                   <div className="relative">
                     <User className="absolute left-3 top-3 w-4 h-4 text-[#677086]" />
                     <Input 
@@ -668,15 +665,15 @@ export default function LandingPage() {
                     />
                   </div>
                 </div>
-              </div>
 
-              <Button 
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#7c5cff] hover:bg-[#7c5cff]/95 text-white font-medium py-2 rounded-lg mt-2"
-              >
-                {loading ? "Registering..." : "Create Account"}
-              </Button>
+                <Button 
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-[#7c5cff] hover:bg-[#7c5cff]/95 text-white font-medium py-2 rounded-lg mt-2"
+                >
+                  {loading ? "Creating account..." : "Create Account"}
+                </Button>
+              </form>
 
               <div className="text-center text-xs text-[#a5adc2] pt-2">
                 Already registered?{" "}
@@ -688,146 +685,6 @@ export default function LandingPage() {
                   Sign In
                 </button>
               </div>
-            </form>
-          )}
-
-          {authMode === "forgot" && (
-            <div className="space-y-4">
-              <DialogHeader>
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => { setAuthMode("login"); setForgotStep("username"); }}
-                    className="text-[#a5adc2] hover:text-[#f7f8ff] mr-1"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                  </button>
-                  <DialogTitle className="text-xl font-bold text-[#f7f8ff]">Reset Password</DialogTitle>
-                </div>
-                <DialogDescription className="text-[#a5adc2] text-xs">
-                  {forgotStep === "username" && "Enter your username to request an OTP code validation."}
-                  {forgotStep === "otp" && "Enter the 6-digit OTP verification code sent to your user logs."}
-                  {forgotStep === "reset" && "Enter and confirm your new password below."}
-                </DialogDescription>
-              </DialogHeader>
-
-              {forgotStep === "username" && (
-                <form onSubmit={handleForgotUsername} className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-[#a5adc2] uppercase">Your Username</label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 w-4 h-4 text-[#677086]" />
-                      <Input 
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        placeholder="demo_user"
-                        className="pl-9 bg-[#07080d] border-white/5 focus:border-[#7c5cff] text-[#f7f8ff] text-sm rounded-lg"
-                      />
-                    </div>
-                  </div>
-                  <Button 
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-[#7c5cff] hover:bg-[#7c5cff]/95 text-white font-medium py-2 rounded-lg"
-                  >
-                    {loading ? "Verifying..." : "Send Verification Code"}
-                  </Button>
-                </form>
-              )}
-
-              {forgotStep === "otp" && (
-                <form onSubmit={handleForgotOtp} className="space-y-4">
-                  <div className="flex flex-col items-center space-y-4 py-2">
-                    <label className="text-[11px] font-semibold text-[#a5adc2] uppercase self-start">Verification Code (OTP)</label>
-                    
-                    <InputOTP maxLength={6} value={otpVal} onChange={setOtpVal}>
-                      <InputOTPGroup className="gap-2">
-                        <InputOTPSlot index={0} className="bg-[#07080d] border-white/5 text-[#f7f8ff] rounded-md text-lg" />
-                        <InputOTPSlot index={1} className="bg-[#07080d] border-white/5 text-[#f7f8ff] rounded-md text-lg" />
-                        <InputOTPSlot index={2} className="bg-[#07080d] border-white/5 text-[#f7f8ff] rounded-md text-lg" />
-                        <InputOTPSlot index={3} className="bg-[#07080d] border-white/5 text-[#f7f8ff] rounded-md text-lg" />
-                        <InputOTPSlot index={4} className="bg-[#07080d] border-white/5 text-[#f7f8ff] rounded-md text-lg" />
-                        <InputOTPSlot index={5} className="bg-[#07080d] border-white/5 text-[#f7f8ff] rounded-md text-lg" />
-                      </InputOTPGroup>
-                    </InputOTP>
-                  </div>
-
-                  <div className="flex justify-between items-center text-xs pt-1">
-                    <span className="text-[#677086]">
-                      {resetTimer > 0 ? `Resend in ${resetTimer}s` : "Code ready to resend"}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={!resendActive}
-                      onClick={async () => {
-                        const success = await sendOtp(username)
-                        if (success) {
-                          toast.success("New code sent! Check your logs.")
-                          setResetTimer(60)
-                          setResendActive(false)
-                          setOtpVal("")
-                        }
-                      }}
-                      className={`font-semibold ${resendActive ? 'text-[#7c5cff] hover:underline' : 'text-[#677086] cursor-not-allowed'}`}
-                    >
-                      Resend Code
-                    </button>
-                  </div>
-
-                  <Button 
-                    type="submit"
-                    disabled={otpVal.length < 6}
-                    className="w-full bg-[#7c5cff] hover:bg-[#7c5cff]/95 text-white font-medium py-2 rounded-lg"
-                  >
-                    Verify Code
-                  </Button>
-
-                  <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded text-[11px] text-[#a5adc2] text-left">
-                    💡 <strong>Development Tip</strong>: The simulated verification code is <strong>123456</strong>. Check your console logs for confirmation.
-                  </div>
-                </form>
-              )}
-
-              {forgotStep === "reset" && (
-                <form onSubmit={handleResetPassword} className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-[#a5adc2] uppercase">New Password</label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 w-4 h-4 text-[#677086]" />
-                        <Input 
-                          type="password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="••••••••"
-                          className="pl-9 bg-[#07080d] border-white/5 focus:border-[#7c5cff] text-[#f7f8ff] text-sm rounded-lg"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-[#a5adc2] uppercase">Confirm New Password</label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 w-4 h-4 text-[#677086]" />
-                        <Input 
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          placeholder="••••••••"
-                          className="pl-9 bg-[#07080d] border-white/5 focus:border-[#7c5cff] text-[#f7f8ff] text-sm rounded-lg"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button 
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-[#22d3ee] hover:bg-[#22d3ee]/95 text-[#07080d] font-semibold py-2 rounded-lg mt-2"
-                  >
-                    {loading ? "Resetting password..." : "Confirm Password Reset"}
-                  </Button>
-                </form>
-              )}
             </div>
           )}
 
