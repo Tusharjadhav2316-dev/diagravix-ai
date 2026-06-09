@@ -24,7 +24,9 @@ import {
   type OnNodesChange,
   type OnEdgesChange,
   applyNodeChanges,
-  applyEdgeChanges
+  applyEdgeChanges,
+  type OnNodeDrag,
+  type NodeMouseHandler
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 
@@ -138,8 +140,8 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
   )
 
   // Handle Drag Position updates
-  const handleNodeDragStop = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
+  const handleNodeDragStop: OnNodeDrag = useCallback(
+    (_event, node) => {
       const position = node.position
       if (storeDiagram) {
         storeUpdateNode(node.id, { 
@@ -153,8 +155,8 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
   )
 
   // Handle Selection updates
-  const handleNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
+  const handleNodeClick: NodeMouseHandler = useCallback(
+    (_event, node) => {
       if (storeDiagram) {
         storeSelectedNodeIds([node.id])
       }
