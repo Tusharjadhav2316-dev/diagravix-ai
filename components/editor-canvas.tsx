@@ -140,8 +140,8 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
   )
 
   // Handle Drag Position updates
-  const handleNodeDragStop: OnNodeDrag = useCallback(
-    (_event, node) => {
+  const handleNodeDragStop = useCallback<OnNodeDrag<Node>>(
+    (_event, node, _nodes) => {
       const position = node.position
       if (storeDiagram) {
         storeUpdateNode(node.id, { 
@@ -155,7 +155,7 @@ const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function 
   )
 
   // Handle Selection updates
-  const handleNodeClick: NodeMouseHandler = useCallback(
+  const handleNodeClick = useCallback<NodeMouseHandler<Node>>(
     (_event, node) => {
       if (storeDiagram) {
         storeSelectedNodeIds([node.id])
