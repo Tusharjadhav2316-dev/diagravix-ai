@@ -59,7 +59,7 @@
     "jspdf": "latest",
     "konva": "latest",
     "lucide-react": "^0.454.0",
-    "next": "16.0.0",
+    "next": "16.0.10",
     "next-themes": "^0.4.6",
     "prettier": "^3.8.3",
     "react": "19.2.0",
